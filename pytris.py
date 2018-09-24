@@ -16,13 +16,15 @@ TODO
 - DONE Line removal simple
 - Line removal animate
 - Game selection (new game, end game, repeat game)
-- Next piece
+- DONE Next piece
 - DONE Drop piece
 - DONE BUG Options is not right
 - DONE End game detection
 - Tidy up display
 - DONE Pause
-- BUG Game Over not displaying!
+- DONE BUG Game Over not displaying!
+- DONE BUG O shape wobbles on rotate
+- Show column indicator
 
 @author: fst AT lieder.me.uk
 '''
@@ -66,14 +68,23 @@ ssize = swidth, sheight = [640, 480]
 block = pygame.image.load('block.gif')
 blockrect = block.get_rect()
 
+'''
+Shape definition: dict
+  rotate = Bool
+  points = [[x,y]]
+'''
 shapes = [
-        [[-2, 0], [-1, 0], [0, 0], [1, 0]],  # I
-        [[0, 0], [1, 0], [0, 1], [1, 1]],  # O
-        [[0, -1], [0, 0], [0, 1], [-1, 0]],  # T
-        [[0, -1], [0, 0], [0, 1], [1, -1]],  # J
-        [[0, -1], [0, 0], [0, 1], [-1, -1]],  # L
-        [[-1, -1], [0, -1], [0, 0], [1, 0]],  # S
-        [[0, -1], [0, 0], [-1, 0], [-1, -1]]  # Z
+        { 'positions': [[-2, 0], [-1, 0], [0, 0], [1, 0]], 'rotate': True },  # I
+        { 'positions': [[0, 0], [1, 0], [0, 1], [1, 1]], 'rotate': False },  # O
+        { 'positions': [[0, -1], [0, 0], [0, 1], [-1, 0]], 'rotate': True },  # T
+        { 'positions': [[0, -1], [0, 0], [0, 1], [1, -1]], 'rotate': True },  # J
+        { 'positions': [[0, -1], [0, 0], [0, 1], [-1, -1]], 'rotate': True },  # L
+        { 'positions': [[-1, -1], [0, -1], [0, 0], [1, 0]], 'rotate': True },  # S
+        { 'positions': [[0, -1], [0, 0], [-1, 0], [-1, -1]], 'rotate': True }  # Z
+    ]
+
+shapes_small = [
+        { 'positions': [[-1, -1], [-1, 0], [0, 0], [0, -1]], 'rotate': False }  # O
     ]
 
 pygame.font.init()
@@ -87,16 +98,19 @@ class Shape(object):
     Positions: [ [x, y] ]
     '''
     
-    def __init__(self, positions):
-        self.positions = positions
+    def __init__(self, shape_defn):
+        self.positions = shape_defn['positions']
+        self.rotate = shape_defn['rotate']
 
     def rotate_left(self):
+        if not self.rotate: return
         np = []
         for i in range(len(self.positions)):
             np.append([self.positions[i][1], -self.positions[i][0]])
         self.positions = np
         
     def rotate_right(self):
+        if not self.rotate: return
         np = []
         for i in range(len(self.positions)):
             np.append([-self.positions[i][1], self.positions[i][0]])
@@ -108,6 +122,8 @@ class Shape(object):
             points.append([mx + x, my + y])
         return points
 
+    def duplicate(self):
+        return Shape({'positions': self.positions, 'rotate': self.rotate})
     
 def validate_rotated(model, shape, mx, my):
     for x, y in shape.get_points(mx, my):
@@ -128,11 +144,11 @@ def get_options(model, shape, mx, my):
         if x >= (mwidth - 1) or model[x + 1][y]: options.discard(Directions.RIGHT)
         if y > (mheight - 2) or model[x][y + 1]: options.discard(Directions.DOWN)
         
-    rs = Shape(shape.positions)
+    rs = shape.duplicate()
     rs.rotate_right()
     if not validate_rotated(model, rs, mx, my): options.discard(Directions.RRIGHT)
     
-    ls = Shape(shape.positions)
+    ls = shape.duplicate()
     ls.rotate_left()
     if not validate_rotated(model, ls, mx, my): options.discard(Directions.RLEFT)
     
@@ -168,11 +184,11 @@ def remove_lines(model, removals):
             model[x][0] = False
 
 
-def model_to_screen(mx, my):
+def model_to_screen(mx, my, xoff, yoff):
     return [xoff + mx * bs, yoff + my * bs]
 
 
-def display_board(screen, score, paused):
+def display_board(screen, score, paused, next_shape):
     screen.fill(red)
     lw = 2
     ph = mheight * bs
@@ -181,12 +197,16 @@ def display_board(screen, score, paused):
                                             (xoff + pw, yoff + ph), (xoff + pw, yoff - lw)], lw)
     
     text = font.render('Score: %d%s' % (score, ' - PAUSED' if paused else ''), True, black)
+    
+    if next_shape:
+        display_shape(screen, next_shape, 0, 0, 200, 200)
+    
     screen.blit(text, (10, 10))
 
     
-def display_shape(screen, shape, mx, my):
+def display_shape(screen, shape, mx, my, xoff, yoff):
     for x, y in shape.get_points(mx, my):
-        blockrect.x, blockrect.y = model_to_screen(x, y)
+        blockrect.x, blockrect.y = model_to_screen(x, y, xoff, yoff)
         screen.blit(block, blockrect)
 
         
@@ -194,18 +214,18 @@ def display_sediment(screen, model):
     for x in range(mwidth):
         for y in range(mheight):
             if model[x][y]:
-                blockrect.x, blockrect.y = model_to_screen(x, y)
+                blockrect.x, blockrect.y = model_to_screen(x, y, xoff, yoff)
                 screen.blit(block, blockrect)
 
                 
 def display_game_over(screen):
     text = font.render('GAME OVER!', True, black)
-    screen.blit(text, (10, 10))
+    screen.blit(text, (20, 100))
     print('XXX Displayed game over')
 
 
 def main():
-    kup, kdown, kright, kleft, kspace, kp = 273, 274, 275, 276, 32, 112
+    kup, kdown, kright, kleft, kspace, kp, kq = 273, 274, 275, 276, 32, 112, 113
     screen = pygame.display.set_mode(ssize)
     
     mx, my = 0, 0
@@ -221,6 +241,7 @@ def main():
     next_level = level_up
     first = True
     paused = False
+    next_shape = Shape(random.choice(shapes))
     
     last_time = pygame.time.get_ticks()
     
@@ -235,7 +256,8 @@ def main():
         last_time = new_time
         
         if shape is None:
-            shape = Shape(random.choice(shapes))
+            shape = next_shape
+            next_shape = Shape(random.choice(shapes))
             mx, my = 5, 0
             cycle = 0
             first = True
@@ -283,8 +305,8 @@ def main():
                 my += 1
                 cycle = 0
 
-        display_board(screen, score, paused)
-        display_shape(screen, shape, mx, my)
+        display_board(screen, score, paused, next_shape)
+        display_shape(screen, shape, mx, my, xoff, yoff)
         display_sediment(screen, model)
 
         pygame.display.flip()
@@ -297,14 +319,18 @@ def main():
         cycle += 1
         
     print('Game over!')
-    display_board(screen, score, paused)
-    display_shape(screen, shape, mx, my)
+    display_board(screen, score, paused, None)
+    display_shape(screen, shape, mx, my, xoff, yoff)
     display_sediment(screen, model)
     display_game_over(screen)
     pygame.display.flip()
 
-    input()
+    while True:
+        event = pygame.event.wait()
+        if event.key == kq:
+            break
 
+    print('Goodbye...')
         
 if __name__ == '__main__':
     main()
