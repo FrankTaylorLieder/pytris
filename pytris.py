@@ -15,12 +15,12 @@ TODO
 - Speed up
 - DONE Line removal simple
 - Line removal animate
-- Game selection
+- Game selection (new game, end game, repeat game)
 - High scores
 - Next piece
 - DONE Drop piece
 - DONE BUG Options is not right
-- End game detection
+- DONE End game detection
 - Tidy up display
 
 @author: fst AT lieder.me.uk
@@ -192,6 +192,10 @@ def display_sediment(screen, model):
             if model[x][y]:
                 blockrect.x, blockrect.y = model_to_screen(x, y)
                 screen.blit(block, blockrect)
+                
+def display_game_over(screen):
+    text = font.render('GAME OVER!', False, black)
+    screen.blit(text, (100, 100))
 
 def main():    
     kup, kdown, kright, kleft, kspace = 273, 274, 275, 276, 32
@@ -205,12 +209,14 @@ def main():
     removals = []
     drop = False
     score = 0
+    first = True
     
     while True:
         if shape is None:
             shape = Shape(random.choice(shapes))
             mx, my = 5, 0
             cycle = 0
+            first = True
             
         options = get_options(model, shape, mx, my)
             
@@ -222,9 +228,9 @@ def main():
                     mx -= 1
                 if event.key == kright and Directions.RIGHT in options:
                     mx += 1
-                if event.key == kup and Directions.RLEFT in options:
+                if event.key == kdown and Directions.RLEFT in options:
                     shape.rotate_left()
-                if event.key == kdown and Directions.RRIGHT in options:
+                if event.key == kup and Directions.RRIGHT in options:
                     shape.rotate_right()
                 if event.key == kspace and Directions.DOWN in options:
                     drop = True
@@ -250,11 +256,24 @@ def main():
         display_board(screen, score)
         display_shape(screen, shape, mx, my)
         display_sediment(screen, model)
+        
+        if first:
+            if not options:
+                break;
+            first = False
           
         pygame.display.flip()
         
         cycle += 1
+        
+    print('Game over!')
+    display_board(screen, score)
+    display_shape(screen, shape, mx, my)
+    display_sediment(screen, model)
+    display_game_over(screen)
+    pygame.display.flip()
 
+    input()
         
 if __name__ == '__main__':
     main()
