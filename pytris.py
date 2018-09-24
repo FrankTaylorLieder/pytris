@@ -10,7 +10,7 @@ TODO
 - DONE Sediment blocks
 - DONE Collision detection
 - DONE Rotation
-- Scoring
+- DONE Scoring
 - Consistent timing
 - Speed up
 - DONE Line removal simple
@@ -19,8 +19,9 @@ TODO
 - High scores
 - Next piece
 - DONE Drop piece
-- BUG Options is not right
+- DONE BUG Options is not right
 - End game detection
+- Tidy up display
 
 @author: fst AT lieder.me.uk
 '''
@@ -56,9 +57,6 @@ def dump_model(model):
             print('*' if model[x][y] else '.', end='')
         print('')
 
-        
-dump_model(model)
-
 bs = 10
 xoff, yoff = 50, 50
 ssize = swidth, sheight = [640, 480]
@@ -75,6 +73,9 @@ shapes = [
         [[-1, -1], [0, -1], [0, 0], [1, 0]], # S
         [[0, -1], [0, 0], [-1, 0], [-1, -1]] # Z
     ]
+
+pygame.font.init()
+font = pygame.font.SysFont('Comic Sans MS', 30)
 
 
 class Shape(object):
@@ -117,9 +118,7 @@ def validate_rotated(model, shape, mx, my):
 def get_options(model, shape, mx, my):
     # print('XXX get_options %s' % [mx, my, shape])
     options = { Directions.LEFT, Directions.RIGHT, Directions.DOWN, Directions.RLEFT, Directions.RRIGHT }
-    
-    # BUG L/R direction model tests missing
-        
+            
     for x, y in shape.get_points(mx, my):
         if x <= 0 or model[x-1][y]: options.discard(Directions.LEFT)
         if x >= (mwidth - 1) or model[x+1][y]: options.discard(Directions.RIGHT)
@@ -169,13 +168,16 @@ def model_to_screen(mx, my):
     return [xoff + mx * bs, yoff + my * bs]
 
 
-def display_board(screen):
+def display_board(screen, score):
     screen.fill(red)
     lw = 2
     ph = mheight * bs
     pw = mwidth * bs
     pygame.draw.lines(screen, black, True, [(xoff - lw, yoff - lw), (xoff - lw, yoff + ph),
                                             (xoff + pw, yoff + ph), (xoff + pw, yoff - lw)], lw)
+    
+    text = font.render('Score: %d' % score, False, black)
+    screen.blit(text, (10, 10))
 
     
 def display_shape(screen, shape, mx, my):
@@ -191,7 +193,7 @@ def display_sediment(screen, model):
                 blockrect.x, blockrect.y = model_to_screen(x, y)
                 screen.blit(block, blockrect)
 
-def main():
+def main():    
     kup, kdown, kright, kleft, kspace = 273, 274, 275, 276, 32
     screen = pygame.display.set_mode(ssize)
     
@@ -202,6 +204,7 @@ def main():
     cycles = 20
     removals = []
     drop = False
+    score = 0
     
     while True:
         if shape is None:
@@ -238,12 +241,13 @@ def main():
                 removals = lines_to_remove(model)
                 if removals:
                     remove_lines(model, removals)
+                    score += 2 ** (len(removals) - 1)
                     
                 continue
             my += 1
             cycle = 0
 
-        display_board(screen)
+        display_board(screen, score)
         display_shape(screen, shape, mx, my)
         display_sediment(screen, model)
           
