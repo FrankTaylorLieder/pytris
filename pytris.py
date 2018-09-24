@@ -8,16 +8,19 @@ TODO
 - DONE Show shapes
 - DONE Handle key presses
 - DONE Sediment blocks
-- Collision detection - rotate TODO
+- DONE Collision detection
 - DONE Rotation
 - Scoring
 - Consistent timing
 - Speed up
-- Animate line removal
+- DONE Line removal simple
+- Line removal animate
 - Game selection
 - High scores
 - Next piece
-- Drop piece
+- DONE Drop piece
+- BUG Options is not right
+- End game detection
 
 @author: fst AT lieder.me.uk
 '''
@@ -35,7 +38,6 @@ class Directions(Enum):
     RIGHT = 3
     RLEFT = 4
     RRIGHT = 5
-
 
 red = 255, 0, 0
 black = 0, 0, 0
@@ -102,18 +104,34 @@ class Shape(object):
         for x, y in self.positions:
             points.append([mx + x, my + y])
         return points
-
+    
+def validate_rotated(model, shape, mx, my):
+    for x, y in shape.get_points(mx, my):
+        if x < 0: return False
+        if x >= mwidth: return False
+        if y >= mheight: return False
+        if model[x][y]: return False
+    
+    return True
 
 def get_options(model, shape, mx, my):
     # print('XXX get_options %s' % [mx, my, shape])
     options = { Directions.LEFT, Directions.RIGHT, Directions.DOWN, Directions.RLEFT, Directions.RRIGHT }
     
-    # TODO Calculate rotations.
-    
+    # BUG L/R direction model tests missing
+        
     for x, y in shape.get_points(mx, my):
-        if x <= 0: options.discard(Directions.LEFT)
-        if x >= (mwidth - 1): options.discard(Directions.RIGHT)
+        if x <= 0 or model[x-1][y]: options.discard(Directions.LEFT)
+        if x >= (mwidth - 1) or model[x+1][y]: options.discard(Directions.RIGHT)
         if y > (mheight - 2) or model[x][y+1]: options.discard(Directions.DOWN)
+        
+    rs = Shape(shape.positions)
+    rs.rotate_right()
+    if not validate_rotated(model, rs, mx, my): options.discard(Directions.RRIGHT)
+    
+    ls = Shape(shape.positions)
+    ls.rotate_left()
+    if not validate_rotated(model, ls, mx, my): options.discard(Directions.RLEFT)
     
     return options
 
@@ -124,6 +142,28 @@ def sediment(model, shape, mx, my):
         if x >= 0 and x < mwidth and y >= 0 and y < mheight:
             model[x][y] = True
 
+def lines_to_remove(model):
+    lines = []
+    for y in range(mheight):
+        remove = True
+        for x in range(mwidth):
+            if not model[x][y]:
+                remove = False
+                break
+        if remove: lines.append(y)
+    
+    print('XXX Removing: %s' % lines)
+    return lines
+
+def remove_lines(model, removals):
+    print('XXX Removing lines')
+    removals.sort()
+    for l in removals:
+        for y in range(l-1, -1, -1):
+            for x in range(mwidth):
+                model[x][y+1] = model[x][y]
+        for x in range(mwidth):
+            model[x][0] = False
 
 def model_to_screen(mx, my):
     return [xoff + mx * bs, yoff + my * bs]
@@ -152,14 +192,16 @@ def display_sediment(screen, model):
                 screen.blit(block, blockrect)
 
 def main():
-    kup, kdown, kright, kleft = 273, 274, 275, 276
+    kup, kdown, kright, kleft, kspace = 273, 274, 275, 276, 32
     screen = pygame.display.set_mode(ssize)
     
     mx, my = 0, 0
     shape = None
     
     cycle = 0
-    cycles = 10
+    cycles = 20
+    removals = []
+    drop = False
     
     while True:
         if shape is None:
@@ -177,17 +219,26 @@ def main():
                     mx -= 1
                 if event.key == kright and Directions.RIGHT in options:
                     mx += 1
-                if event.key == kup:
+                if event.key == kup and Directions.RLEFT in options:
                     shape.rotate_left()
-                if event.key == kdown:
+                if event.key == kdown and Directions.RRIGHT in options:
                     shape.rotate_right()
+                if event.key == kspace and Directions.DOWN in options:
+                    drop = True
                     
             options = get_options(model, shape, mx, my)
     
-        if cycle > cycles:
+        if cycle > cycles or drop:
             if Directions.DOWN not in options:
                 sediment(model, shape, mx, my)
                 shape = None
+                drop = False
+                
+                # TODO Properly animate and score this.
+                removals = lines_to_remove(model)
+                if removals:
+                    remove_lines(model, removals)
+                    
                 continue
             my += 1
             cycle = 0
