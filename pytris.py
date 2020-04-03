@@ -233,7 +233,7 @@ def main():
     
     cycle_time = 50
     cycle = 0
-    cycles = 20
+    cycles = 10
     removals = []
     drop = False
     score = 0
