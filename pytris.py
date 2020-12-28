@@ -25,6 +25,7 @@ TODO
 - DONE BUG Game Over not displaying!
 - DONE BUG O shape wobbles on rotate
 - Show column indicator
+- Sort out the pygame installation on M1 mac. GIF support not by default.
 
 @author: fst AT lieder.me.uk
 '''
@@ -65,7 +66,7 @@ bs = 10
 xoff, yoff = 50, 50
 ssize = swidth, sheight = [640, 480]
 
-block = pygame.image.load('block.gif')
+block = pygame.image.load('block.bmp')
 blockrect = block.get_rect()
 
 '''
