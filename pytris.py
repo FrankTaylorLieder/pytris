@@ -25,8 +25,8 @@ TODO
 - DONE BUG Game Over not displaying!
 - DONE BUG O shape wobbles on rotate
 - Show column indicator
-- Sort out the pygame installation on M1 mac. GIF support not by default.
-- Port to pygame 2.3
+- DONE Sort out the pygame installation on M1 mac. GIF support not by default.
+- DONE Port to pygame 2.3
 
 @author: fst AT lieder.me.uk
 '''
