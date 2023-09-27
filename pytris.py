@@ -24,7 +24,7 @@ TODO
 - DONE Pause
 - DONE BUG Game Over not displaying!
 - DONE BUG O shape wobbles on rotate
-- Show column indicator
+- DONE Show column indicator
 - DONE Sort out the pygame installation on M1 mac. GIF support not by default.
 - DONE Port to pygame 2.3
 
@@ -67,6 +67,7 @@ def dump_model(model):
 bs = 10
 xoff, yoff = 50, 50
 ssize = swidth, sheight = [300, 300]
+shadowy = yoff + ((mheight + 1) * bs)
 
 block = pygame.image.load('block.gif')
 blockrect = block.get_rect()
@@ -105,6 +106,7 @@ class Shape(object):
     '''
 
     def __init__(self, shape_defn):
+        self.name = shape_defn['name']
         self.positions = shape_defn['positions']
         self.rotate = shape_defn['rotate']
 
@@ -130,8 +132,18 @@ class Shape(object):
             points.append([mx + x, my + y])
         return points
 
+    def get_shadow(self):
+        minx = 0
+        maxx = 0
+        for x, y in self.positions:
+            if x < minx:
+                minx = x
+            if x > maxx:
+                maxx = x
+        return (minx, maxx)
+
     def duplicate(self):
-        return Shape({'positions': self.positions, 'rotate': self.rotate})
+        return Shape({'name': self.name, 'positions': self.positions, 'rotate': self.rotate})
 
 
 def validate_rotated(model, shape, mx, my):
@@ -245,6 +257,13 @@ def display_game_over(screen):
     screen.blit(text, (20, 100))
 
 
+def display_shadow(screen, model, mx, xoff):
+
+    (min, max) = model.get_shadow()
+    for x in range(min, max + 1):
+        sx, sy = model_to_screen(mx + x, 0, xoff, 0)
+        pygame.draw.line(screen, black, (sx, shadowy), (sx + bs, shadowy))
+
 def main():
     screen = pygame.display.set_mode(ssize)
 
@@ -344,6 +363,7 @@ def main():
         display_board(screen, score, paused, next_shape)
         display_shape(screen, shape, mx, my, xoff, yoff)
         display_sediment(screen, model)
+        display_shadow(screen, shape, mx, xoff)
 
         pygame.display.flip()
 
