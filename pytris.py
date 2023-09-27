@@ -350,7 +350,6 @@ def main():
                     if removals:
                         remove_lines(model, removals)
                         score += 2 ** (len(removals) - 1)
-
                         if cycles > 1 and score >= next_level:
                             print('Next level!')
                             next_level += level_up
