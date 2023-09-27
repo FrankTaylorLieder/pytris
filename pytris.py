@@ -15,7 +15,7 @@ TODO
 - DONE Speed up
 - DONE Line removal simple
 - Line removal animate
-- Game selection (new game, end game, repeat game)
+- DONE Game selection (new game, end game, repeat game)
 - DONE Next piece
 - DONE Drop piece
 - DONE BUG Options is not right
@@ -54,7 +54,10 @@ black = 0, 0, 0
 mwidth, mheight = 10, 20
 
 # 2D array: list of columns
-model = [x[:] for x in [[False] * mheight] * mwidth]
+
+
+def new_model():
+    return [x[:] for x in [[False] * mheight] * mwidth]
 
 
 def dump_model(model):
@@ -267,7 +270,6 @@ def display_game_over(screen):
 
 
 def display_shadow(screen, model, mx, xoff):
-
     (min, max) = model.get_shadow()
     for x in range(min, max + 1):
         sx, sy = model_to_screen(mx + x, 0, xoff, 0)
@@ -277,128 +279,153 @@ def display_shadow(screen, model, mx, xoff):
 def main():
     screen = pygame.display.set_mode(ssize)
 
-    mx, my = 0, 0
-    shape = None
-
     cycle_time = 50
-    cycle = 0
-    cycles = 10
-    removals = []
-    drop = False
-    score = 0
     level_up = 20
-    next_level = level_up
-    first = True
-    paused = False
-    next_shape = Shape(random.choice(shapes))
+    done = False
 
     last_time = pygame.time.get_ticks()
 
-    while True:
-        new_time = pygame.time.get_ticks()
-        delay = (last_time + cycle_time) - new_time
-        # print('XXX Cycle %d time: %d - %d' % (cycle, new_time - last_time, delay))
-        if delay > 0:
-            # print('NOTE: cycle OK')
-            pygame.time.wait(delay)
-        # else:
-        #     print('WARNING: cycle took too long: %d' % delay)
-        last_time = new_time
+    while not done:
+        display_board(screen, 0, False, None)
+        pygame.display.flip()
 
-        if shape is None:
-            shape = next_shape
-            next_shape = Shape(random.choice(shapes))
-            mx, my = 5, 0
-            cycle = 0
-            first = True
-
-        options = get_options(model, shape, mx, my)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
+        while True:
+            event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
-                print('Key: %s, %s' % (event.key, options))
-                if event.key == pygame.K_p:
-                    paused = not paused
-                handled = False
-                if not paused:
-                    if event.key == pygame.K_LEFT:
-                        print("Left")
-                        if Directions.LEFT in options:
-                            mx -= 1
-                        handled = True
-                    if event.key == pygame.K_RIGHT:
-                        print("Right")
-                        if Directions.RIGHT in options:
-                            mx += 1
-                        handled = True
-                    if event.key == pygame.K_DOWN:
-                        print("Down")
-                        if Directions.RLEFT in options:
-                            shape.rotate_left()
-                        handled = True
-                    if event.key == pygame.K_UP:
-                        print("Up")
-                        if Directions.RRIGHT in options:
-                            shape.rotate_right()
-                        handled = True
-                    if event.key == pygame.K_SPACE:
-                        print("Space")
-                        if Directions.DOWN in options:
-                            drop = True
-                        handled = True
+                if event.key == pygame.K_q:
+                    done = True
+                    break
+                if event.key == pygame.K_s:
+                    break
 
-                    if not handled:
-                        print('WARNING: Key not handled: %s' % event.key)
+        if done:
+            continue
+
+        mx, my = 0, 0
+        shape = None
+        first = True
+        paused = False
+        next_shape = Shape(random.choice(shapes))
+        cycle = 0
+        cycles = 10
+        removals = []
+        drop = False
+        score = 0
+        next_level = level_up
+        model = new_model()
+
+        while True:
+            new_time = pygame.time.get_ticks()
+            delay = (last_time + cycle_time) - new_time
+            # print('XXX Cycle %d time: %d - %d' % (cycle, new_time - last_time, delay))
+            if delay > 0:
+                # print('NOTE: cycle OK')
+                pygame.time.wait(delay)
+            # else:
+            #     print('WARNING: cycle took too long: %d' % delay)
+            last_time = new_time
+
+            if shape is None:
+                shape = next_shape
+                next_shape = Shape(random.choice(shapes))
+                mx, my = 5, 0
+                cycle = 0
+                first = True
 
             options = get_options(model, shape, mx, my)
 
-        if not paused:
-            if cycle > cycles or drop:
-                if Directions.DOWN not in options:
-                    sediment(model, shape, mx, my)
-                    shape = None
-                    drop = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    print('Key: %s, %s' % (event.key, options))
+                    if event.key == pygame.K_p:
+                        paused = not paused
+                    handled = False
+                    if not paused:
+                        if event.key == pygame.K_LEFT:
+                            print("Left")
+                            if Directions.LEFT in options:
+                                mx -= 1
+                            handled = True
+                        if event.key == pygame.K_RIGHT:
+                            print("Right")
+                            if Directions.RIGHT in options:
+                                mx += 1
+                            handled = True
+                        if event.key == pygame.K_DOWN:
+                            print("Down")
+                            if Directions.RLEFT in options:
+                                shape.rotate_left()
+                            handled = True
+                        if event.key == pygame.K_UP:
+                            print("Up")
+                            if Directions.RRIGHT in options:
+                                shape.rotate_right()
+                            handled = True
+                        if event.key == pygame.K_SPACE:
+                            print("Space")
+                            if Directions.DOWN in options:
+                                drop = True
+                            handled = True
 
-                    removals = lines_to_remove(model)
-                    if removals:
-                        remove_lines(model, removals)
-                        score += 2 ** (len(removals) - 1)
-                        if cycles > 1 and score >= next_level:
-                            print('Next level!')
-                            next_level += level_up
-                            cycles -= 1
+                        if not handled:
+                            print('WARNING: Key not handled: %s' % event.key)
 
-                    continue
-                my += 1
-                cycle = 0
+                options = get_options(model, shape, mx, my)
 
-        display_board(screen, score, paused, next_shape)
+            if not paused:
+                if cycle > cycles or drop:
+                    if Directions.DOWN not in options:
+                        sediment(model, shape, mx, my)
+                        shape = None
+                        drop = False
+
+                        removals = lines_to_remove(model)
+                        if removals:
+                            remove_lines(model, removals)
+                            points = 2 ** (len(removals) - 1)
+                            score += points
+                            print("Score: %d lines, %d points, %d score" %
+                                  (len(removals), points, score))
+                            if cycles > 1 and score >= next_level:
+                                print('Next level!')
+                                next_level += level_up
+                                cycles -= 1
+
+                        continue
+                    my += 1
+                    cycle = 0
+
+            display_board(screen, score, paused, next_shape)
+            display_shape(screen, shape, mx, my, xoff, yoff)
+            display_sediment(screen, model)
+            display_shadow(screen, shape, mx, xoff)
+
+            pygame.display.flip()
+
+            if first:
+                if not options:
+                    break
+                first = False
+
+            cycle += 1
+
+        print('Game over!')
+        display_board(screen, score, paused, None)
         display_shape(screen, shape, mx, my, xoff, yoff)
         display_sediment(screen, model)
-        display_shadow(screen, shape, mx, xoff)
-
+        display_game_over(screen)
         pygame.display.flip()
 
-        if first:
-            if not options:
-                break
-            first = False
-
-        cycle += 1
-
-    print('Game over!')
-    display_board(screen, score, paused, None)
-    display_shape(screen, shape, mx, my, xoff, yoff)
-    display_sediment(screen, model)
-    display_game_over(screen)
-    pygame.display.flip()
-
-    while True:
-        event = pygame.event.wait()
-        if event.key == pygame.K_q:
-            break
+        while True:
+            event = pygame.event.wait()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    done = True
+                    break
+                if event.key == pygame.K_s:
+                    break
 
     print('Goodbye...')
 
