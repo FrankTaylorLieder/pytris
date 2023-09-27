@@ -20,7 +20,7 @@ TODO
 - DONE Drop piece
 - DONE BUG Options is not right
 - DONE End game detection
-- Tidy up display
+- DONE Tidy up display
 - DONE Pause
 - DONE BUG Game Over not displaying!
 - DONE BUG O shape wobbles on rotate
@@ -110,6 +110,9 @@ class Shape(object):
         self.positions = shape_defn['positions']
         self.rotate = shape_defn['rotate']
 
+    def can_rotate(self):
+        return self.rotate
+
     def rotate_left(self):
         if not self.rotate:
             return
@@ -161,7 +164,7 @@ def validate_rotated(model, shape, mx, my):
 
 
 def get_options(model, shape, mx, my):
-    # print('XXX get_options %s' % [mx, my, shape])
+    # print('XXX get_options %s' % [mx, my, shape.name])
     options = {Directions.LEFT, Directions.RIGHT,
                Directions.DOWN, Directions.RLEFT, Directions.RRIGHT}
 
@@ -173,15 +176,21 @@ def get_options(model, shape, mx, my):
         if y > (mheight - 2) or model[x][y + 1]:
             options.discard(Directions.DOWN)
 
-    rs = shape.duplicate()
-    rs.rotate_right()
-    if not validate_rotated(model, rs, mx, my):
+    if shape.can_rotate():
+        rs = shape.duplicate()
+        rs.rotate_right()
+        if not validate_rotated(model, rs, mx, my):
+            options.discard(Directions.RRIGHT)
+
+        ls = shape.duplicate()
+        ls.rotate_left()
+        if not validate_rotated(model, ls, mx, my):
+            options.discard(Directions.RLEFT)
+    else:
+        options.discard(Directions.RLEFT)
         options.discard(Directions.RRIGHT)
 
-    ls = shape.duplicate()
-    ls.rotate_left()
-    if not validate_rotated(model, ls, mx, my):
-        options.discard(Directions.RLEFT)
+    # print("XXX options: %s" % options)
 
     return options
 
@@ -264,6 +273,7 @@ def display_shadow(screen, model, mx, xoff):
         sx, sy = model_to_screen(mx + x, 0, xoff, 0)
         pygame.draw.line(screen, black, (sx, shadowy), (sx + bs, shadowy))
 
+
 def main():
     screen = pygame.display.set_mode(ssize)
 
@@ -314,28 +324,33 @@ def main():
                 handled = False
                 if not paused:
                     if event.key == pygame.K_LEFT:
+                        print("Left")
                         if Directions.LEFT in options:
                             mx -= 1
                         handled = True
                     if event.key == pygame.K_RIGHT:
+                        print("Right")
                         if Directions.RIGHT in options:
                             mx += 1
                         handled = True
                     if event.key == pygame.K_DOWN:
-                        if Directions.LEFT in options:
+                        print("Down")
+                        if Directions.RLEFT in options:
                             shape.rotate_left()
                         handled = True
                     if event.key == pygame.K_UP:
+                        print("Up")
                         if Directions.RRIGHT in options:
                             shape.rotate_right()
                         handled = True
                     if event.key == pygame.K_SPACE:
+                        print("Space")
                         if Directions.DOWN in options:
                             drop = True
                         handled = True
 
                     if not handled:
-                        print('WARNING: Key not handled: %s', event.key)
+                        print('WARNING: Key not handled: %s' % event.key)
 
             options = get_options(model, shape, mx, my)
 
